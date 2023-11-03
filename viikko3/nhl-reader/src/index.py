@@ -16,6 +16,8 @@ def main():
             player = Player(player_dict)
             players.append(player)
 
+    players.sort(key=lambda player: player.total, reverse=True)
+
     print(f"Players from {nationality}:\n")
 
     for player in players:
