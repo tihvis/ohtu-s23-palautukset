@@ -1,5 +1,6 @@
 *** Settings ***
 Resource  resource.robot
+Resource  login_resource.robot
 Suite Setup  Open And Configure Browser
 Suite Teardown  Close Browser
 Test Setup  Go To Register Page
@@ -34,20 +35,32 @@ Register With Nonmatching Password And Password Confirmation
     Submit Credentials
     Register Should Fail With Message  Invalid password confirmation
 
+Login After Successful Registration
+    Set Username  testitesti
+    Set Password  kalle123
+    Set Password Confirmation  kalle123
+    Submit Credentials
+    Register Should Succeed
+    Go To Login Page
+    Set Username  testitesti
+    Set Password  kalle123
+    Submit Login Credentials
+    Login Should Succeed
+
+Login After Failed Registration
+    Set Username  kalle
+    Set Password  password
+    Set Password Confirmation  password
+    Submit Credentials
+    Register Should Fail With Message  Password cannot contain only letters
+    Go To Login Page
+    Set Username  kalle
+    Set Password  password
+    Submit Login Credentials
+    Login Should Fail With Message  Invalid username or password
+
 
 *** Keywords ***
-
-Set Username
-    [Arguments]  ${username}
-    Input Text  username  ${username}
-
-Set Password
-    [Arguments]  ${password}
-    Input Password  password  ${password}
-
-Set Password Confirmation
-    [Arguments]  ${password_confirmation}
-    Input Password  password_confirmation  ${password_confirmation}
 
 Submit Credentials
     Click Button  Register
