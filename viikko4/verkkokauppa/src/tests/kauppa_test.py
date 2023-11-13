@@ -9,11 +9,8 @@ class TestKauppa(unittest.TestCase):
 
     def setUp(self):
         self.pankki_mock = Mock()
-        self.viitegeneraattori_mock = Mock()
+        self.viitegeneraattori_mock = Mock(wraps=Viitegeneraattori())
         self.varasto_mock = Mock()
-
-        # palautetaan aina arvo 42
-        self.viitegeneraattori_mock.uusi.return_value = 42
 
         # tehdään toteutus saldo-metodille
         def varasto_saldo(tuote_id):
@@ -53,6 +50,9 @@ class TestKauppa(unittest.TestCase):
     def test_ostoksen_paatyttya_pankin_metodia_tilisiirto_kutsutaan_oikeilla_arvoilla(self):
         # alustetaan kauppa
         kauppa = Kauppa(self.varasto_mock, self.pankki_mock, self.viitegeneraattori_mock)
+
+        # palautetaan aina arvo 42
+        self.viitegeneraattori_mock.uusi.return_value = 42
         
         # tehdään ostokset
         kauppa.aloita_asiointi()
@@ -68,12 +68,12 @@ class TestKauppa(unittest.TestCase):
 
         # ostokset: kaksi eri tuotetta joita on varastossa
         kauppa.aloita_asiointi()
-        kauppa.lisaa_koriin(1)
         kauppa.lisaa_koriin(2)
+        kauppa.lisaa_koriin(1)
         kauppa.tilimaksu("antti", "23456")
 
         #varmistetaan, että metodia tilisiirto on kutsuttu oikeilla arvoilla
-        self.pankki_mock.tilisiirto.assert_called_with("antti", 42, "23456", "33333-44455", 8)
+        self.pankki_mock.tilisiirto.assert_called_with("antti", ANY, "23456", "33333-44455", 8)
 
     def test_kahden_saman_tuotteen_ostokset_veloitetaan_oikein(self):
         # alustetaan kauppa
@@ -86,7 +86,7 @@ class TestKauppa(unittest.TestCase):
         kauppa.tilimaksu("ville", "34567")
 
         #varmistetaan, että metodia tilisiirto on kutsuttu oikeilla arvoilla
-        self.pankki_mock.tilisiirto.assert_called_with("ville", 42, "34567", "33333-44455", 10)
+        self.pankki_mock.tilisiirto.assert_called_with("ville", ANY, "34567", "33333-44455", 10)
 
     def test_vain_varastosta_oleva_tuote_veloitetaan(self):
         # alustetaan kauppa
@@ -94,12 +94,76 @@ class TestKauppa(unittest.TestCase):
 
         # ostokset: kaksi eri tuotetta, joista toista ei ole varastossa
         kauppa.aloita_asiointi()
-        kauppa.lisaa_koriin(1)
         kauppa.lisaa_koriin(3)
+        kauppa.lisaa_koriin(2)
         kauppa.tilimaksu("jouko", "45678")
 
         #varmistetaan, että metodia tilisiirto on kutsuttu oikeilla arvoilla
-        self.pankki_mock.tilisiirto.assert_called_with("jouko", 42, "45678", "33333-44455", 5)
+        self.pankki_mock.tilisiirto.assert_called_with("jouko", ANY, "45678", "33333-44455", 3)
+
+    def test_metodi_aloita_asiointi_nollaa_ostoskorin(self):
+         # alustetaan kauppa
+        kauppa = Kauppa(self.varasto_mock, self.pankki_mock, self.viitegeneraattori_mock)
+
+        #ensimmäinen asiointi
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.lisaa_koriin(2)
+
+        #tarkistetaan, että metodia tilisiirto ei kutsuta tässä vaiheessa
+        self.pankki_mock.tilisiirto.mock.assert_not_called()
+
+        #toinen asiointi     
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.tilimaksu("jouko", "45678")
+
+        #varmistetaan, että metodia tilisiirto on kutsuttu oikeilla arvoilla
+        self.pankki_mock.tilisiirto.assert_called_with("jouko", ANY, "45678", "33333-44455", 5)   
+
+    def test_jokaisella_asioinnilla_oma_viitenumero(self):
+         # alustetaan kauppa
+        kauppa = Kauppa(self.varasto_mock, self.pankki_mock, self.viitegeneraattori_mock)
+
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.lisaa_koriin(2)
+        kauppa.tilimaksu("antti", "12345")
+
+        self.assertEqual(self.viitegeneraattori_mock.uusi.call_count, 1)
+
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.lisaa_koriin(2)
+        kauppa.tilimaksu("jouko", "99999")
+
+
+        self.assertEqual(self.viitegeneraattori_mock.uusi.call_count, 2)
+
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(1)
+        kauppa.lisaa_koriin(2)
+        kauppa.tilimaksu("ville", "33333")
+
+
+        self.assertEqual(self.viitegeneraattori_mock.uusi.call_count, 3)
+
+    def test_tuotteen_poistaminen_ostoskorista_veloitetaan_oikein(self):
+        # alustetaan kauppa
+        kauppa = Kauppa(self.varasto_mock, self.pankki_mock, self.viitegeneraattori_mock)
+
+        kauppa.aloita_asiointi()
+        kauppa.lisaa_koriin(2)
+        kauppa.lisaa_koriin(1)
+        kauppa.poista_korista(2)
+        kauppa.tilimaksu("antti", "12345")
+
+        #varmistetaan, että metodia tilisiirto on kutsuttu oikeilla arvoilla
+        self.pankki_mock.tilisiirto.assert_called_with("antti", ANY, "12345", "33333-44455", 5)
+
+
+      
+        
 
 
 
