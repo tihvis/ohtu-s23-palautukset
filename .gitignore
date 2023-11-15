@@ -17,3 +17,5 @@ report.html
 output.xml
 log.html
 *.code-workspace
+.DS_Store
+.pytest_cache
